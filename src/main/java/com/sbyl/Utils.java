@@ -43,6 +43,25 @@ public class Utils {
         return bd.toPlainString();
     }
 
+    public static String truncateTo12Digits(String numberStr) {
+        if (numberStr == null)
+            return null;
+
+        if (!numberStr.matches("^\\d+$"))
+            return numberStr;
+
+        return numberStr.length() > 12
+                ? numberStr.substring(0, 12)
+                : numberStr;
+    }
+
+    public static String cleanString(String input) {
+        if (input == null)
+            return null;
+
+        return input.replaceAll("[^0-9\\s.-]", "");
+    }
+
     public static boolean isNumberCell(String str) {
         if (str == null || str.isEmpty())
             return false;

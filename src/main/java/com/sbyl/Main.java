@@ -152,14 +152,20 @@ public class Main {
                          * Just ignore it.
                          */
                         if (value.contains("统一编号：") || value.contains("统一编号:") || value.contains("统—编号：") || value.contains("统—编号:")) {
-                            currentSerialNumber = value.replaceAll("\\D+", "");
+                            String num = value.replaceAll("\\D+", "");
+                            if (Utils.isBlank(num)) {
+                                for (Cell c : row)
+                                    if (c != null && Utils.isNumberCell(c.toString()))
+                                        num = c.toString().replaceAll("\\D+", "");
+                            }
+                            currentSerialNumber = Utils.truncateTo12Digits(num);
                             break;
                         }
 
                         /*
                          * If "平均水位" exist, mark this row as a data row of current item.
                          */
-                        if (currentSerialNumber != null && value.contains("平均水位")) {
+                        if (currentSerialNumber != null && (value.contains("平均水位") || value.contains("平均水仅"))) {
                             isDataRow = true;
                             markPosition = i;
                             break;
@@ -181,8 +187,15 @@ public class Main {
                         state = 2;
 
                     // Get data list and check list size.
+                    boolean checkDataCount = false;
+                    int currentSize = 0;
+                    ArrayList<String> dataToBeChecked = new ArrayList<>();
                     for (Cell cell : row) {
-                        String value = cell.toString();
+                        String rawValue = cell.toString();
+                        String value = Utils.cleanString(rawValue);
+                        if (Utils.isBlank(value))
+                            continue;
+
                         if (!Utils.isNumberCell(value))
                             continue;
 
@@ -198,7 +211,21 @@ public class Main {
                         if (dataList.size() != 1 && (state == 0 || state == 2))
                             state++;
 
+                        // If dataList size changed or size is not 1 or 4, check it later.
+                        dataToBeChecked.addAll(dataList);
+                        if (!checkDataCount) {
+                            if ((currentSize != 0 && currentSize != dataList.size()) || (dataList.size() != 1 && dataList.size() != 4))
+                                checkDataCount = true;
+                            currentSize = dataList.size();
+                        }
+
                         data.add(dataList.getFirst());
+                    }
+
+                    // If size < 12, data to be checked size = 12, then change data.
+                    if (checkDataCount && data.size() < 12 && dataToBeChecked.size() == 12) {
+                        data.clear();
+                        data.addAll(dataToBeChecked);
                     }
 
                     // If data size != 12, means the row is broken, add -1 list.
