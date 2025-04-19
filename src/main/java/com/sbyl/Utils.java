@@ -2,6 +2,7 @@ package com.sbyl;
 
 import java.io.File;
 import java.io.IOException;
+import java.math.BigDecimal;
 import java.nio.charset.Charset;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -34,6 +35,12 @@ public class Utils {
     public static void writeBytes(Path file, byte[] data) throws IOException {
         Files.createDirectories(file.getParent());
         Files.write(file, data);
+    }
+
+    public static String doubleToString(double number) {
+        BigDecimal bd = new BigDecimal(Double.toString(number));
+        bd = bd.stripTrailingZeros();
+        return bd.toPlainString();
     }
 
     public static boolean isNumberCell(String str) {

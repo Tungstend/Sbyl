@@ -11,9 +11,11 @@ import java.util.Objects;
 
 public class Main {
 
-    static final String INPUT_FILE_PATH = "C:\\Users\\hanji\\Documents\\WeChat Files\\wxid_0xiky9xxszp622\\FileStorage\\File\\2025-04\\2018\\";
-    static final String OUTPUT_FILE_PATH = "C:\\Users\\hanji\\Documents\\WeChat Files\\wxid_0xiky9xxszp622\\FileStorage\\File\\2025-04\\2018\\output.xlsx";
-    static final String LOG_FILE_PATH = "C:\\Users\\hanji\\Documents\\WeChat Files\\wxid_0xiky9xxszp622\\FileStorage\\File\\2025-04\\2018\\log.txt";
+    static final String INPUT_FILE_PATH = "C:\\Users\\hanji\\Documents\\WeChat Files\\wxid_0xiky9xxszp622\\FileStorage\\File\\2025-04\\2019\\";
+    static final String OUTPUT_FILE_PATH = "C:\\Users\\hanji\\Documents\\WeChat Files\\wxid_0xiky9xxszp622\\FileStorage\\File\\2025-04\\2019\\output.xlsx";
+    static final String LOG_FILE_PATH = "C:\\Users\\hanji\\Documents\\WeChat Files\\wxid_0xiky9xxszp622\\FileStorage\\File\\2025-04\\2019\\log.txt";
+
+    static final int outputStartIndex = 5;
 
     static final String[] DEFAULT_PATH = {
             INPUT_FILE_PATH,
@@ -47,6 +49,9 @@ public class Main {
      * state -1: invalid data,
      * state 0: valid and safe data,
      * state 1: valid but unsafe data.
+     * state 2: valid but unsafe data.
+     * state 3: valid but unsafe data.
+     * state 4: valid but unsafe data.
      */
     static HashMap<String, ArrayList<String>> dataMap;
 
@@ -112,7 +117,7 @@ public class Main {
                  * If current serial number is not null, the current item should be abnormal.
                  * Abnormal data should be -1.
                  */
-                if (isEmptyRow) {
+                /*if (isEmptyRow) {
                     if (currentSerialNumber != null) {
                         ArrayList<String> data = new ArrayList<>();
                         for (int i = 0; i < 13; i++) {
@@ -122,7 +127,7 @@ public class Main {
                     }
                     currentSerialNumber = null;
                     continue;
-                }
+                }*/
 
                 /*
                  * Check the cells in the row,
@@ -146,13 +151,8 @@ public class Main {
                          * if value equals "统一编号：", it should be an abnormal data.
                          * Just ignore it.
                          */
-                        if (value.contains("统一编号：")) {
-                            String[] split = value.split("：");
-                            if (split.length == 2) {
-                                currentSerialNumber = split[1].replaceAll("\\D+", "");
-                            } else {
-                                currentSerialNumber = null;
-                            }
+                        if (value.contains("统一编号：") || value.contains("统一编号:") || value.contains("统—编号：") || value.contains("统—编号:")) {
+                            currentSerialNumber = value.replaceAll("\\D+", "");
                             break;
                         }
 
@@ -202,11 +202,36 @@ public class Main {
                     }
 
                     // If data size != 12, means the row is broken, add -1 list.
-                    if (data.size() != 12) {
+                    if (data.size() > 12 || data.isEmpty()) {
                         data.clear();
                         for (int i = 0; i < 13; i++) {
                             data.add("-1");
                         }
+                    } else if (data.size() < 12) {
+                        // Recheck data when size < 12
+                        data.clear();
+                        for (int i = 0; i < 12; i++) {
+                            Cell cell = row.getCell(i + 2);
+                            if (cell == null) {
+                                data.add("-100");
+                                continue;
+                            }
+
+                            String value = cell.toString();
+                            if (!Utils.isNumberCell(cell.toString())) {
+                                data.add("-100");
+                                continue;
+                            }
+
+                            ArrayList<String> dataList = Utils.getDataList(value);
+                            if (dataList.isEmpty()) {
+                                data.add("-100");
+                                continue;
+                            }
+
+                            data.add(dataList.getFirst());
+                        }
+                        data.add("4");
                     } else {
                         data.add(Integer.toString(state));
                     }
@@ -229,6 +254,7 @@ public class Main {
             int level1DataCount = 0;
             int level2DataCount = 0;
             int level3DataCount = 0;
+            int level4DataCount = 0;
             StringBuilder builder = new StringBuilder();
             for (String key : dataMap.keySet()) {
                 ArrayList<String> data = dataMap.get(key);
@@ -260,6 +286,8 @@ public class Main {
                     level2DataCount++;
                 if (Objects.equals(data.get(12), "3"))
                     level3DataCount++;
+                if (Objects.equals(data.get(12), "4"))
+                    level4DataCount++;
             }
             System.out.printf("Total number of data from input file: %d\n", totalDataCount);
             System.out.printf("Total number of valid data from input file: %d\n", validDataCount);
@@ -267,11 +295,13 @@ public class Main {
             System.out.printf("Total number of level 1 data from input file: %d\n", level1DataCount);
             System.out.printf("Total number of level 2 data from input file: %d\n", level2DataCount);
             System.out.printf("Total number of level 3 data from input file: %d\n", level3DataCount);
+            System.out.printf("Total number of level 4 data from input file: %d\n", level4DataCount);
             System.out.printf("Percentage of valid data from input file: %f%%\n", (validDataCount * 100f) / totalDataCount);
             System.out.printf("Percentage of safe data from input file: %f%%\n", (safeDataCount * 100f) / totalDataCount);
             System.out.printf("Percentage of level 1 data from input file: %f%%\n", (level1DataCount * 100f) / totalDataCount);
             System.out.printf("Percentage of level 2 data from input file: %f%%\n", (level2DataCount * 100f) / totalDataCount);
             System.out.printf("Percentage of level 3 data from input file: %f%%\n", (level3DataCount * 100f) / totalDataCount);
+            System.out.printf("Percentage of level 4 data from input file: %f%%\n", (level4DataCount * 100f) / totalDataCount);
             try {
                 Utils.writeText(new File(logFilePath), builder.toString());
             } catch (IOException e) {
@@ -292,26 +322,35 @@ public class Main {
             int level1DataCount = 0;
             int level2DataCount = 0;
             int level3DataCount = 0;
+            int level4DataCount = 0;
 
             for (Row row : sheet) {
                 if (row.getCell(0).getCellType() != CellType.NUMERIC)
                     continue;
 
+                if (outputStartIndex == 5 && row.getCell(4).getCellType() == CellType.NUMERIC && row.getCell(4).getNumericCellValue() == 0) {
+                    row.createCell(outputStartIndex + 12).setCellValue(-2);
+                    continue;
+                }
+
                 totalDataCount++;
-                
+
                 // If data not found, write -1 and skip.
-                ArrayList<String> dataList = dataMap.get(Double.toString(row.getCell(0).getNumericCellValue()).replace(".", "").replace("E11", ""));
+                ArrayList<String> dataList = dataMap.get(Utils.doubleToString(row.getCell(0).getNumericCellValue()));
                 if (dataList == null || dataList.size() != 13 || dataList.getLast().equals("-1")) {
-                    row.createCell(5).setCellValue(-1);
-                    row.createCell(17).setCellValue(-1);
+                    row.createCell(outputStartIndex + 12).setCellValue(-1);
                     continue;
                 }
                 
                 // Data found, write data and state.
-                for (int i = 5; i < 18; i++) {
+                for (int i = outputStartIndex; i < outputStartIndex + 13; i++) {
                     if (row.getCell(i) == null)
                         row.createCell(i);
-                    row.getCell(i).setCellValue(Float.parseFloat(dataList.get(i - 5)));
+                    CellStyle numberStyle = workbook.createCellStyle();
+                    DataFormat dataFormat = workbook.createDataFormat();
+                    numberStyle.setDataFormat(dataFormat.getFormat("0.00"));
+                    row.getCell(i).setCellValue(Float.parseFloat(dataList.get(i - outputStartIndex)));
+                    row.getCell(i).setCellStyle(numberStyle);
                 }
                 validDataCount++;
                 if (Objects.equals(dataList.get(12), "0"))
@@ -322,6 +361,13 @@ public class Main {
                     level2DataCount++;
                 if (Objects.equals(dataList.get(12), "3"))
                     level3DataCount++;
+                if (Objects.equals(dataList.get(12), "4"))
+                    level4DataCount++;
+            }
+
+            // adapt width
+            for (int i = 0; i < outputStartIndex + 13; i++) {
+                sheet.autoSizeColumn(i);
             }
 
             // Save file.
@@ -337,11 +383,13 @@ public class Main {
             System.out.printf("Total number of level 1 data written to output file: %d\n", level1DataCount);
             System.out.printf("Total number of level 2 data written to output file: %d\n", level2DataCount);
             System.out.printf("Total number of level 3 data written to output file: %d\n", level3DataCount);
+            System.out.printf("Total number of level 4 data written to output file: %d\n", level4DataCount);
             System.out.printf("Percentage of valid data written to output file: %f%%\n", (validDataCount * 100f) / totalDataCount);
             System.out.printf("Percentage of safe data written to output file: %f%%\n", (safeDataCount * 100f) / totalDataCount);
             System.out.printf("Percentage of level 1 data written to output file: %f%%\n", (level1DataCount * 100f) / totalDataCount);
             System.out.printf("Percentage of level 2 data written to output file: %f%%\n", (level2DataCount * 100f) / totalDataCount);
             System.out.printf("Percentage of level 3 data written to output file: %f%%\n", (level3DataCount * 100f) / totalDataCount);
+            System.out.printf("Percentage of level 4 data written to output file: %f%%\n", (level4DataCount * 100f) / totalDataCount);
         } catch (IOException e) {
             //throw new RuntimeException(e);
         }
