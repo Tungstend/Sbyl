@@ -36,7 +36,7 @@ public class Utils {
         Files.write(file, data);
     }
 
-    public static boolean isDataCell(String str) {
+    public static boolean isNumberCell(String str) {
         if (str == null || str.isEmpty())
             return false;
 
